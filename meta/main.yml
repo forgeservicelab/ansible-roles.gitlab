@@ -1,8 +1,8 @@
 ---
 galaxy_info:
-  author: your name
-  description: 
-  company: your company (optional)
+  author: Jorge Rodriguez (A.K.A. Tiriel)
+  description: Sets up gitlab with default options. DOES NOT handle gitlab.yml or initialize the database.
+  company: FORGE ServiceLab
   # Some suggested licenses:
   # - BSD (default)
   # - MIT
@@ -17,7 +17,7 @@ galaxy_info:
   # the ones that apply to your role. If you don't see your 
   # platform on this list, let us know and we'll get it added!
   #
-  #platforms:
+  platforms:
   #- name: EL
   #  versions:
   #  - all
@@ -90,18 +90,18 @@ galaxy_info:
   #  versions:
   #  - all
   #  - any
-  #- name: Debian
-  #  versions:
+  - name: Debian
+    versions:
   #  - all
   #  - etch
   #  - lenny
   #  - squeeze
-  #  - wheezy
+    - wheezy
   #
   # Below are all categories currently available. Just as with
   # the platforms above, uncomment those that apply to your role.
   #
-  #categories:
+  categories:
   #- cloud
   #- cloud:ec2
   #- cloud:gce
@@ -110,11 +110,11 @@ galaxy_info:
   #- database
   #- database:nosql
   #- database:sql
-  #- development
+  - development
   #- monitoring
   #- networking
   #- packaging
-  #- system
+  - system
   #- web
 dependencies:
   # List your role dependencies here, one per line. Only

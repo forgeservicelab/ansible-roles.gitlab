@@ -2,22 +2,23 @@
 # Compile ruby as per gitlab requirements
 - name: Get ruby
   get_url:
-    url=ftp://ftp.ruby-lang.org/pub/ruby/2.0/ruby-2.0.0-p353.tar.gz
-    dest=/tmp/
+    url: "ftp://ftp.ruby-lang.org/pub/ruby/{{ '.'.join(ruby_version.split('-')[0].split('.')[:-1]) }}/ruby-{{ ruby_version }}.tar.gz"
+    dest: /tmp/
 
 - name: Prepare the unarchive target directory
   file:
-    path=/tmp/ruby/
-    state=directory
+    path: /tmp/ruby/
+    state: directory
 
 - name: Unpack ruby
   unarchive:
-    src=/tmp/ruby-2.0.0-p353.tar.gz
-    dest=/tmp/ruby/
-    copy=no
+    src: "/tmp/ruby-{{ ruby_version }}.tar.gz"
+    dest: /tmp/ruby/
+    copy: no
 
 - name: install ruby
-  shell: "{{ item }} chdir=/tmp/ruby/ruby-2.0.0-p353"
+  command: "{{ item }}
+    chdir=/tmp/ruby/ruby-{{ ruby_version }}"
   with_items:
     - './configure --disable-install-rdoc'
     - 'make'
@@ -25,13 +26,13 @@
 
 - name: Disable rubygems ri and rdoc
   lineinfile:
-    dest=/usr/local/etc/gemrc
-    line="{{ 'gem:' + ' --no-ri --no-rdoc' }}"
-    create=yes
-    state=present
+    dest: /usr/local/etc/gemrc
+    line: "{{ 'gem:' + ' --no-ri --no-rdoc' }}"
+    create: yes
+    state: present
 
 - name: Install bundler gem
   gem:
-    name=bundler
-    state=latest
-    user_install=no
+    name: bundler
+    state: latest
+    user_install: no
