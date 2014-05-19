@@ -163,6 +163,7 @@
     dest: /home/git/gitlab-satellites
     owner: git
     mode: 0750
+    state: directory
 
 - name: Install gems
   command: bundle install --deployment --without development test mysql aws
