@@ -108,7 +108,7 @@
     dest: /tmp/gitlab
     repo: "{{ gitlab_source }}"
     version: "{{ gitlab_version }}"
-    ssh_opts: -o StrictHostKeyChecking=no
+    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
   sudo: false
 
 - name: Move Gitlab to its final location
