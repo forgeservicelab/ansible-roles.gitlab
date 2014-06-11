@@ -1,3 +1,167 @@
 ---
 - include: debian.yml
   when: ansible_distribution == 'Debian'
+
+- name: Check if ruby is installed
+  stat:
+    path: /usr/local/lib/ruby/gems/{{ ruby_version.split('-')[0] }}
+  register: ruby
+
+- name: Install ruby from source
+  include: ruby.yml
+  when: not ruby.stat.exists
+
+- name: Add git user
+  user:
+    name: "{{ git_user_name }}"
+    home: "{{ git_user_home }}"
+    comment: GitLab
+    state: present
+
+- name: Get gitlab-shell
+  git:
+    dest: "{{ git_user_home }}/gitlab-shell"
+    repo: https://gitlab.com/gitlab-org/gitlab-shell.git
+    version: "{{ gitlab_shell_version }}"
+  sudo_user: "{{ git_user_name }}"
+  tags:
+    - redeploy
+
+- name: Copy the configuration sample
+  command: cp config.yml.example config.yml
+    chdir={{ git_user_home }}/gitlab-shell
+    creates={{ git_user_home }}/gitlab-shell/config.yml
+  sudo_user: "{{ git_user_name }}"
+  tags:
+    - redeploy
+
+- name: Change the gitlab_url
+  lineinfile:
+    dest: "{{ git_user_home }}/gitlab-shell/config.yml"
+    regexp: ^(gitlab_url:)( \"http://)
+    backrefs: yes
+    line: '\1\2{{ web_domain }}/"'
+  sudo_user: "{{ git_user_name }}"
+  tags:
+    - redeploy
+
+- name: Setup gitlab-shell
+  command: ./bin/install
+    chdir={{ git_user_home }}/gitlab-shell
+  sudo_user: "{{ git_user_name }}"
+  tags:
+    - redeploy
+
+- name: Create gitlab database user
+  postgresql_user:
+    name: git
+  sudo_user: postgres
+
+- name: Create gitlab database
+  postgresql_db:
+    name: gitlabhq_production
+    owner: git
+  sudo_user: postgres
+
+- name: Get gitlab
+  git:
+    dest: /tmp/gitlab
+    repo: "{{ gitlab_source }}"
+    version: "{{ gitlab_version }}"
+    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+  sudo: false
+  tags:
+    - redeploy
+
+- name: Move Gitlab to its final location
+  command: cp -rf /tmp/gitlab ~
+  sudo_user: "{{ git_user_name }}"
+  tags:
+    - redeploy
+
+- name: Ensure permissions on log and tmp
+  file:
+    dest: "{{ git_user_home }}/gitlab/{{ item }}"
+    owner: "{{ git_user_name }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  with_items:
+    - 'log'
+    - 'tmp'
+    - 'tmp/pids'
+    - 'tmp/sockets'
+    - 'public/uploads'
+  tags:
+    - redeploy
+
+- name: Copy the Unicorn config file
+  command: cp config/unicorn.rb.example config/unicorn.rb
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
+
+- name: Copy the Rack attack config file
+  command: cp config/initializers/rack_attack.rb.example config/initializers/rack_attack.rb
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
+
+- name: Configure git settings
+  command: git config --global {{ item }}
+  sudo_user: "{{ git_user_name }}"
+  with_items:
+    - 'user.name "GitLab"'
+    - 'user.email "gitlab@{{ web_domain }}"'
+    - 'core.autocrlf input'
+
+- name: Copy the database config file
+  command: cp config/database.yml.postgresql config/database.yml
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
+
+- name: Ensure database config permissions
+  file:
+    dest: "{{ git_user_home }}/gitlab/config/database.yml"
+    owner: "{{ git_user_name }}"
+    mode: 0750
+  tags:
+    - redeploy
+
+- name: Create satellites directory
+  file:
+    dest: "{{ git_user_home }}/gitlab-satellites"
+    owner: "{{ git_user_name }}"
+    mode: 0750
+    state: directory
+  tags:
+    - redeploy
+
+- name: Install gems
+  command: bundle install --deployment --without development test mysql aws
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
+
+- name: Install init.d script
+  command: cp lib/support/init.d/gitlab /etc/init.d/gitlab
+    chdir={{ git_user_home }}/gitlab
+    creates=/etc/init.d/gitlab
+
+- name: Add gitlab to startup pipeline
+  command: update-rc.d gitlab defaults 21
+
+- name: Setup logrotate
+  command: cp lib/support/logrotate/gitlab /etc/logrotate.d/gitlab
+    chdir={{ git_user_home }}/gitlab
+    creates=/etc/logrotate.d/gitlab
+
+- name: Configure nginx
+  command: cp lib/support/nginx/gitlab /etc/nginx/sites-available/gitlab
+    chdir={{ git_user_home }}/gitlab
+    creates=/etc/nginx/sites-available/gitlab
+  notify: restart nginx
+
+- name: Enable gitlab nginx config
+  file:
+    src: /etc/nginx/sites-available/gitlab
+    dest: /etc/nginx/sites-enabled/gitlab
+    state: link
+  notify: restart nginx

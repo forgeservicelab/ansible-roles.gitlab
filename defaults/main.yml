@@ -1,5 +1,7 @@
 ---
 # defaults file for gitlab
+git_user_name: git
+git_user_home: /home/{{ git_user_name }}
 gitlab_source: https://github.com/gitlabhq/gitlabhq.git
 gitlab_version: 6-8-stable
 gitlab_shell_version: v1.9.3
