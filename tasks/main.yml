@@ -40,7 +40,7 @@
     dest: "{{ git_user_home }}/gitlab-shell/config.yml"
     regexp: ^(gitlab_url:)( \"http://)
     backrefs: yes
-    line: '\1\2{{ web_domain }}/"'
+    line: '\1 "https://{{ web_domain }}/"'
   sudo_user: "{{ git_user_name }}"
   tags:
     - redeploy
