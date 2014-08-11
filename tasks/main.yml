@@ -1,4 +1,12 @@
 ---
+- name: Ensure volume mount
+  mount:
+    fstype: ext4
+    name: /data
+    src: "{{ volume_device }}"
+    state: mounted
+  when: volume_device is defined
+
 - include: debian.yml
   when: ansible_distribution == 'Debian'
 
@@ -10,6 +18,11 @@
 - name: Install ruby from source
   include: ruby.yml
   when: not ruby.stat.exists
+
+- name: Ensure path to git user home
+  file:
+    path: "{{ '/'.join(git_user_home.split('/')[:-1]) }}"
+    state: directory
 
 - name: Add git user
   user:
@@ -35,13 +48,18 @@
   tags:
     - redeploy
 
-- name: Change the gitlab_url
+- name: Reconfigure gitlab-shell
   lineinfile:
     dest: "{{ git_user_home }}/gitlab-shell/config.yml"
-    regexp: ^(gitlab_url:)( \"http://)
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
     backrefs: yes
-    line: '\1 "https://{{ web_domain }}/"'
   sudo_user: "{{ git_user_name }}"
+  with_items:
+    - { regexp: '^(gitlab_url:)( \"http://)', line: '\1 "https://{{ web_domain }}/"' }
+    - { regexp: '^(user:\ ).+', line: '\1{{ git_user_name }}' }
+    - { regexp: '^(repos_path:\ ).+', line: '\1"{{ git_user_home }}/repositories"' }
+    - { regexp: '^(auth_file:\ ).+', line: '\1"{{ git_user_home }}/.ssh/authorized_keys"' }
   tags:
     - redeploy
 
@@ -52,16 +70,16 @@
   tags:
     - redeploy
 
-- name: Create gitlab database user
-  postgresql_user:
-    name: git
-  sudo_user: postgres
+#- name: Create gitlab database user
+#  postgresql_user:
+#    name: git
+#  sudo_user: postgres
 
-- name: Create gitlab database
-  postgresql_db:
-    name: gitlabhq_production
-    owner: git
-  sudo_user: postgres
+#- name: Create gitlab database
+#  postgresql_db:
+#    name: gitlabhq_production
+#    owner: git
+#  sudo_user: postgres
 
 - name: Get gitlab
   git:
@@ -100,6 +118,19 @@
     chdir={{ git_user_home }}/gitlab
   sudo_user: "{{ git_user_name }}"
 
+- name: Fine tune the Unicorn config file
+  lineinfile:
+    dest: "{{ git_user_home }}/gitlab/config/unicorn.rb"
+    backrefs: yes
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^(working_directory).*', line: '\1 "{{ git_user_home }}/gitlab"' }
+    - { regexp: '^(listen\ ).+gitlab.socket"(.+)', line: '\1 "{{ git_user_home }}/gitlab/tmp/sockets/gitlab.socket"\2' }
+    - { regexp: '^(pid).*', line: '\1 "{{ git_user_home }}/gitlab/tmp/pids/unicorn.pid"' }
+    - { regexp: '^(stderr_path).*', line: '\1 "{{ git_user_home }}/gitlab/log/unicorn.stderr.pid"' }
+    - { regexp: '^(stdout_path).*', line: '\1 "{{ git_user_home }}/gitlab/log/unicorn.stdout.pid"' }
+
 - name: Copy the Rack attack config file
   command: cp config/initializers/rack_attack.rb.example config/initializers/rack_attack.rb
     chdir={{ git_user_home }}/gitlab
@@ -117,6 +148,18 @@
   command: cp config/database.yml.postgresql config/database.yml
     chdir={{ git_user_home }}/gitlab
   sudo_user: "{{ git_user_name }}"
+
+- name: Configure database credentials
+  lineinfile:
+    dest: "{{ git_user_home }}/gitlab/config/database.yml"
+    backrefs: yes
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^(\s*)#\ (username:).*', line: '\1\2 {{ gitlab_db_user }}' }
+    - { regexp: '^(\s*)#\ (password:).*', line: '\1\2 {{ gitlab_db_pass }}' }
+    - { regexp: '^(\s*)#\ (host:).*', line: '\1\2 {{ gitlab_db_host }}' }
+    - { regexp: '^(\s*database:\ )gitlabhq_production.*', line: '\1{{ gitlab_db }}' }
 
 - name: Ensure database config permissions
   file:
@@ -145,6 +188,16 @@
     chdir={{ git_user_home }}/gitlab
     creates=/etc/init.d/gitlab
 
+- name: Adjust init.d script
+  lineinfile:
+    dest: /etc/init.d/gitlab
+    backrefs: yes
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^(app_user=).*', line: '\1"{{ git_user_name }}"' }
+    - { regexp: '^(app_root=).*', line: '\1"{{ git_user_home }}/gitlab"' }
+
 - name: Add gitlab to startup pipeline
   command: update-rc.d gitlab defaults 21
 
@@ -157,6 +210,16 @@
   command: cp lib/support/nginx/gitlab /etc/nginx/sites-available/gitlab
     chdir={{ git_user_home }}/gitlab
     creates=/etc/nginx/sites-available/gitlab
+  notify: restart nginx
+
+- name: Fine tune nginx
+  lineinfile:
+    dest: /etc/nginx/sites-available/gitlab
+    backrefs: yes
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^(\s*server\ unix\:).+(/gitlab/tmp/sockets/gitlab.socket;)', line: '\1{{ git_user_home }}\2' }
   notify: restart nginx
 
 - name: Enable gitlab nginx config

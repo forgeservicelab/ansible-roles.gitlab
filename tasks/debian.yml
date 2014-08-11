@@ -24,8 +24,8 @@
     - logrotate
     - git-core
     - exim4
-    - postgresql-9.1
-    - postgresql-client
+#    - postgresql-9.1
+#    - postgresql-client
     - libpq-dev
     - python-psycopg2
     - nginx
