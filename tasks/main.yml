@@ -4,6 +4,8 @@
     fstype: ext4
     name: /data
     src: "{{ volume_device }}"
+    dump: 1
+    passno: 2
     state: mounted
   when: volume_device is defined
 
