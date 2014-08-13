@@ -33,6 +33,25 @@
     comment: GitLab
     state: present
 
+- name: Get gitlab
+  git:
+    dest: /tmp/gitlab
+    repo: "{{ gitlab_source }}"
+    version: "{{ gitlab_version }}"
+    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+  sudo: false
+  tags:
+    - redeploy
+
+- name: Stop gitlab
+  service:
+    name: gitlab
+    state: stopped
+  register: result
+  failed_when: "result.failed and 'service not found' not in result.msg"
+  tags:
+    - redeploy
+
 - name: Get gitlab-shell
   git:
     dest: "{{ git_user_home }}/gitlab-shell"
@@ -69,27 +88,6 @@
   command: ./bin/install
     chdir={{ git_user_home }}/gitlab-shell
   sudo_user: "{{ git_user_name }}"
-  tags:
-    - redeploy
-
-#- name: Create gitlab database user
-#  postgresql_user:
-#    name: git
-#  sudo_user: postgres
-
-#- name: Create gitlab database
-#  postgresql_db:
-#    name: gitlabhq_production
-#    owner: git
-#  sudo_user: postgres
-
-- name: Get gitlab
-  git:
-    dest: /tmp/gitlab
-    repo: "{{ gitlab_source }}"
-    version: "{{ gitlab_version }}"
-    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-  sudo: false
   tags:
     - redeploy
 
