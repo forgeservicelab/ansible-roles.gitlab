@@ -48,7 +48,7 @@
     name: gitlab
     state: stopped
   register: result
-  failed_when: "result.failed and 'service not found' not in result.msg"
+  failed_when: "result.failed is defined and result.msg is defined and 'service not found' not in result.msg"
   tags:
     - redeploy
 
