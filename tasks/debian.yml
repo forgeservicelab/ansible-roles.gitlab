@@ -22,13 +22,19 @@
     - libcurl4-openssl-dev
     - libicu-dev
     - logrotate
-    - git-man=1:1.9.1-1~bpo70+2
-    - git=1:1.9.1-1~bpo70+2
     - exim4
     - libpq-dev
     - python-psycopg2
     - nginx
 
+- name: Install git version 1.9.1
+  apt:
+    pkg: "{{ item }}"
+    state: present
+  with_items:
+    - git-man=1:1.9.1-1~bpo70+2
+    - git=1:1.9.1-1~bpo70+2
+ 
 - name: Configure Exim4
   lineinfile:
     dest: /etc/exim4/update-exim4.conf.conf
