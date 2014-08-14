@@ -22,10 +22,9 @@
     - libcurl4-openssl-dev
     - libicu-dev
     - logrotate
-    - git-core
+    - git-man=1:1.9.1-1~bpo70+2
+    - git=1:1.9.1-1~bpo70+2
     - exim4
-#    - postgresql-9.1
-#    - postgresql-client
     - libpq-dev
     - python-psycopg2
     - nginx
