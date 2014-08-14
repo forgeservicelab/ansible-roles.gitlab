@@ -186,18 +186,15 @@
 - name: Install init.d script
   command: cp lib/support/init.d/gitlab /etc/init.d/gitlab
     chdir={{ git_user_home }}/gitlab
-    creates=/etc/init.d/gitlab
 
-- name: Adjust init.d script
-  lineinfile:
-    dest: /etc/init.d/gitlab
-    backrefs: yes
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-  with_items:
-    - { regexp: '^(app_user=).*', line: '\1"{{ git_user_name }}"' }
-    - { regexp: '^(app_root=).*', line: '\1"{{ git_user_home }}/gitlab"' }
-
+- name: Upload gitlab defaults
+  template:
+    src: gitlab.default.j2
+    dest: /etc/default/gitlab
+    owner: root
+    group: root
+    mode: 0755
+    
 - name: Add gitlab to startup pipeline
   command: update-rc.d gitlab defaults 21
 
