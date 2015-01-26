@@ -35,12 +35,19 @@
   with_items:
     - git-man=1:1.9.1-1~bpo70+2
     - git=1:1.9.1-1~bpo70+2
- 
+
 - name: Configure Exim4
   lineinfile:
     dest: /etc/exim4/update-exim4.conf.conf
     regexp: "dc_eximconfig_configtype='.+?'"
     line: "dc_eximconfig_configtype='internet'"
+  notify: restart exim4
+
+- name: Configure Exim4 (local address)
+  lineinfile:
+    dest: /etc/exim4/update-exim4.conf.conf
+    regexp: "dc_other_hostnames='.+?'"
+    line: "dc_other_hostnames='{{ web_domain }}'"
   notify: restart exim4
 
 - name: Configure Exim4 mailname
