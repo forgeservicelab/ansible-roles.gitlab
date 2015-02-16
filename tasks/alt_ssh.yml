@@ -24,7 +24,7 @@
 
 - name: Upload server configuration
   template:
-    src: ssh_gitlab_config
+    src: ssh_gitlab_config.j2
     dest: /etc/ssh/sshd_gitlab_config
     owner: root
     group: root
