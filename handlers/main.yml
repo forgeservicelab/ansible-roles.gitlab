@@ -20,7 +20,7 @@
     name: redis-server
     state: restarted
 
-- name: restart gitlab ssh
+- name: restart ssh_gitlab
   service:
     name: ssh_gitlab
     state: restarted
