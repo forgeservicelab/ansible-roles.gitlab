@@ -1,8 +1,8 @@
---- 
+---
 # Compile ruby as per gitlab requirements
 - name: Get ruby
   get_url:
-    url: "ftp://ftp.ruby-lang.org/pub/ruby/{{ '.'.join(ruby_version.split('-')[0].split('.')[:-1]) }}/ruby-{{ ruby_version }}.tar.gz"
+    url: "http://cache.ruby-lang.org/pub/ruby/{{ '.'.join(ruby_version.split('-')[0].split('.')[:-1]) }}/ruby-{{ ruby_version }}.tar.gz"
     dest: /tmp/
 
 - name: Prepare the unarchive target directory

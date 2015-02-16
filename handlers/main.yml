@@ -14,3 +14,13 @@
   service:
     name: nginx
     state: restarted
+
+- name: restart redis
+  service:
+    name: redis-server
+    state: restarted
+
+- name: restart gitlab ssh
+  service:
+    name: ssh_gitlab
+    state: restarted

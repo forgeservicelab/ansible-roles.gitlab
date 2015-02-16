@@ -33,15 +33,10 @@
     comment: GitLab
     state: present
 
-- name: Get gitlab
-  git:
-    dest: /tmp/gitlab
-    repo: "{{ gitlab_source }}"
-    version: "{{ gitlab_version }}"
-    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-  sudo: false
-  tags:
-    - redeploy
+- include: redis.yml
+
+- include: alt_ssh.yml
+  when: ssh_port != 22
 
 - name: Stop gitlab
   service:
@@ -52,64 +47,46 @@
   tags:
     - redeploy
 
-- name: Get gitlab-shell
+- name: Enable SSH_AUTH_SOCK on sudo calls
+  copy:
+    src: ssh_auth_sock
+    dest: /etc/sudoers.d/ssh_auth_sock
+    validate: 'visudo -cf %s'
+    owner: root
+    group: root
+    mode: 0440
+
+- name: Get gitlab
   git:
-    dest: "{{ git_user_home }}/gitlab-shell"
-    repo: https://gitlab.com/gitlab-org/gitlab-shell.git
-    version: "{{ gitlab_shell_version }}"
-  sudo_user: "{{ git_user_name }}"
+    dest: "{{ git_user_home }}/gitlab"
+    repo: "{{ gitlab_source }}"
+    version: "{{ gitlab_version }}"
+    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
   tags:
     - redeploy
 
-- name: Copy the configuration sample
-  command: cp config.yml.example config.yml
-    chdir={{ git_user_home }}/gitlab-shell
-    creates={{ git_user_home }}/gitlab-shell/config.yml
-  sudo_user: "{{ git_user_name }}"
-  tags:
-    - redeploy
-
-- name: Reconfigure gitlab-shell
-  lineinfile:
-    dest: "{{ git_user_home }}/gitlab-shell/config.yml"
-    regexp: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-    backrefs: yes
-  sudo_user: "{{ git_user_name }}"
-  with_items:
-    - { regexp: '^(gitlab_url:)( \"http://)', line: '\1 "https://{{ web_domain }}/"' }
-    - { regexp: '^(user:\ ).+', line: '\1{{ git_user_name }}' }
-    - { regexp: '^(repos_path:\ ).+', line: '\1"{{ git_user_home }}/repositories"' }
-    - { regexp: '^(auth_file:\ ).+', line: '\1"{{ git_user_home }}/.ssh/authorized_keys"' }
-  tags:
-    - redeploy
-
-- name: Setup gitlab-shell
-  command: ./bin/install
-    chdir={{ git_user_home }}/gitlab-shell
-  sudo_user: "{{ git_user_name }}"
-  tags:
-    - redeploy
-
-- name: Move Gitlab to its final location
-  command: cp -rf /tmp/gitlab ~
-  sudo_user: "{{ git_user_name }}"
-  tags:
-    - redeploy
-
-- name: Ensure permissions on log and tmp
+- name: Ensure gitlab ownership
   file:
-    dest: "{{ git_user_home }}/gitlab/{{ item }}"
+    path: "{{ git_user_home }}/gitlab"
     owner: "{{ git_user_name }}"
-    mode: 0755
-    state: directory
+    group: "{{ git_user_name }}"
     recurse: yes
-  with_items:
-    - 'log'
-    - 'tmp'
-    - 'tmp/pids'
-    - 'tmp/sockets'
-    - 'public/uploads'
+    state: directory
+
+- name: Upload gitlab configuration
+  template:
+    src: templates/gitlab.yml
+    dest: "{{ git_user_home}}/gitlab/config"
+    owner: "{{ git_user_name }}"
+    group: "{{ git_user_name }}"
+    mode: 0644
+
+- name: Create satellites directory
+  file:
+    dest: "{{ git_user_home }}/gitlab-satellites"
+    owner: "{{ git_user_name }}"
+    mode: 0750
+    state: directory
   tags:
     - redeploy
 
@@ -125,6 +102,7 @@
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
   with_items:
+    - { regexp: '^(worker_processes).*', line: '\1 {{ ansible_processor_cores + 1 }}' }
     - { regexp: '^(working_directory).*', line: '\1 "{{ git_user_home }}/gitlab"' }
     - { regexp: '^(listen\ ).+gitlab.socket"(.+)', line: '\1 "{{ git_user_home }}/gitlab/tmp/sockets/gitlab.socket"\2' }
     - { regexp: '^(pid).*', line: '\1 "{{ git_user_home }}/gitlab/tmp/pids/unicorn.pid"' }
@@ -143,6 +121,11 @@
     - 'user.name "GitLab"'
     - 'user.email "gitlab@{{ web_domain }}"'
     - 'core.autocrlf input'
+
+- name: Copy the Redis connection settings file
+  command: cp config/resque.yml.example config/resque.yml
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
 
 - name: Copy the database config file
   command: cp config/database.yml.postgresql config/database.yml
@@ -169,19 +152,32 @@
   tags:
     - redeploy
 
-- name: Create satellites directory
-  file:
-    dest: "{{ git_user_home }}/gitlab-satellites"
-    owner: "{{ git_user_name }}"
-    mode: 0750
-    state: directory
+- name: Install gems
+  command: bundle install -j{{ ansible_processor_cores }} --deployment --without development test mysql aws
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
+
+- name: Install GitLab Shell
+  command: bundle exec rake gitlab:shell:install[{{ gitlab_shell_version }}] REDIS_URL=unix:/var/run/redis/redis.sock RAILS_ENV=production
+    chdir={{ git_user_home }}/gitlab
+  sudo_user: "{{ git_user_name }}"
   tags:
     - redeploy
 
-- name: Install gems
-  command: bundle install --deployment --without development test mysql aws
-    chdir={{ git_user_home }}/gitlab
+- name: Reconfigure gitlab-shell
+  lineinfile:
+    dest: "{{ git_user_home }}/gitlab-shell/config.yml"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backrefs: yes
   sudo_user: "{{ git_user_name }}"
+  with_items:
+    - { regexp: '^(gitlab_url:)( \"http://)', line: '\1 "https://{{ web_domain }}/"' }
+    - { regexp: '^(user:\ ).+', line: '\1{{ git_user_name }}' }
+    - { regexp: '^(repos_path:\ ).+', line: '\1"{{ git_user_home }}/repositories"' }
+    - { regexp: '^(auth_file:\ ).+', line: '\1"{{ git_user_home }}/.ssh/authorized_keys"' }
+  tags:
+    - redeploy
 
 - name: Install init.d script
   command: cp lib/support/init.d/gitlab /etc/init.d/gitlab
@@ -194,14 +190,13 @@
     owner: root
     group: root
     mode: 0755
-    
+
 - name: Add gitlab to startup pipeline
   command: update-rc.d gitlab defaults 21
 
 - name: Setup logrotate
   command: cp lib/support/logrotate/gitlab /etc/logrotate.d/gitlab
     chdir={{ git_user_home }}/gitlab
-    creates=/etc/logrotate.d/gitlab
 
 - name: Configure nginx
   command: cp lib/support/nginx/gitlab /etc/nginx/sites-available/gitlab

@@ -1,0 +1,32 @@
+---
+- name: Ensure SSH server is installed
+  apt:
+    name: openssh-server
+    state: present
+
+- name: Upload init script
+  copy:
+    src: ssh_gitlab_init
+    dest: /etc/init.d/ssh_gitlab
+    owner: root
+    group: root
+    mode: 0755
+  notify: restart gitlab ssh
+
+- name: Upload defaults
+  copy:
+    src: ssh_gitlab_defaults
+    dest: /etc/default/ssh_gitlab
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart gitlab ssh
+
+- name: Upload server configuration
+  template:
+    src: ssh_gitlab_config
+    dest: /etc/ssh/sshd_gitlab_config
+    owner: root
+    group: root
+    mode: 0644
+  notify: restart gitlab ssh

@@ -1,0 +1,50 @@
+---
+- name: Disable Redis TCP sockets
+  lineinfile:
+    dest: /etc/redis/redis.conf
+    backup: yes
+    regexp: ^port
+    line: port 0
+  notify: restart redis
+
+- name: Enable Redis socket
+  lineinfile:
+    dest: /etc/redis/redis.conf
+    backup: yes
+    regexp: ^unixsocket\s
+    line: unixsocket /var/run/redis/redis.sock
+    insertafter: .+unixsocket.*
+  notify: restart redis
+
+- name: Grant permissions to the socket
+  lineinfile:
+    dest: /etc/redis/redis.conf
+    backup: yes
+    regexp: ^unixsocketperm
+    line: unixsocketperm 770
+    insertafter: ^.*unixsocket.*
+  notify: restart redis
+
+- name: Create socket directory
+  file:
+    path: /var/run/redis
+    owner: redis
+    group: redis
+    mode: 0755
+    state: directory
+
+- name: Check for tmpfiles persistence directory
+  stat:
+    path: /etc/tmpfiles.d
+  register: tmpfiles
+
+- name: Persist socket directory if applicable
+  copy:
+    content: d  /var/run/redis  0755  redis  redis  10d -
+    dest: /etc/tmpfiles.d/redis.conf
+  when: tmpfiles.stat.exists
+
+- name: Add git user to the redis group
+  user:
+    name: "{{ git_user_name }}"
+    groups: redis
