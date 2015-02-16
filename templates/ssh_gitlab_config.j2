@@ -1,0 +1,29 @@
+# Default settings for openssh-server. This file is sourced by /bin/sh from
+# /etc/init.d/ssh.
+
+# Options to pass to sshd
+SSHD_OPTS="-f /etc/ssh/sshd_gitlab_config"
+jrodrigu@gitlab:/etc/init.d$ cat /etc/ssh/sshd_gitlab_config
+Port {{ ssh_port }}
+Protocol 2
+SyslogFacility AUTHPRIV
+PermitRootLogin no
+AllowUsers {{ git_user_name }}
+
+RSAAuthentication yes
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/gitlab_authorized_keys
+PasswordAuthentication no
+UsePAM yes
+
+# Change to no to disable s/key passwords
+ChallengeResponseAuthentication no
+
+# Accept locale-related environment variables
+AcceptEnv LANG LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES
+AcceptEnv LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT
+AcceptEnv LC_IDENTIFICATION LC_ALL LANGUAGE
+AcceptEnv XMODIFIERS
+
+X11Forwarding no
+PidFile /var/run/sshd_gitlab.pid
