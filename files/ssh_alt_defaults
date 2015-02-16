@@ -1,5 +1,0 @@
-# Default settings for  alternative openssh-server. This file is sourced by /bin/sh from
-# /etc/init.d/ssh_gitlab.
-
-# Options to pass to sshd
-SSHD_OPTS="-f /etc/ssh/sshd_gitlab_config"
