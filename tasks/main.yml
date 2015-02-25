@@ -49,7 +49,7 @@
 
 - name: Get gitlab
   git:
-    dest: "tmp/gitlab"
+    dest: "/tmp/gitlab"
     repo: "{{ gitlab_source }}"
     version: "{{ gitlab_version }}"
     ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
