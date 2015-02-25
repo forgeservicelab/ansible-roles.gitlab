@@ -38,6 +38,15 @@
 - include: alt_ssh.yml
   when: ssh_port != 22
 
+- name: Get gitlab
+  git:
+    dest: "{{ git_user_home }}/gitlab"
+    repo: "{{ gitlab_source }}"
+    version: "{{ gitlab_version }}"
+    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+  tags:
+    - redeploy
+
 - name: Stop gitlab
   service:
     name: gitlab
@@ -55,15 +64,6 @@
     owner: root
     group: root
     mode: 0440
-
-- name: Get gitlab
-  git:
-    dest: "{{ git_user_home }}/gitlab"
-    repo: "{{ gitlab_source }}"
-    version: "{{ gitlab_version }}"
-    ssh_opts: -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-  tags:
-    - redeploy
 
 - name: Ensure gitlab ownership
   file:
