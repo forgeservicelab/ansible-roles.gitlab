@@ -74,6 +74,8 @@
   file:
     path: /tmp/gitlab
     state: absent
+  tags:
+    - redeploy
 
 - name: Ensure gitlab ownership
   file:
