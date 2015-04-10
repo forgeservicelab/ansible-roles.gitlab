@@ -3,6 +3,6 @@
 git_user_name: git
 git_user_home: /home/{{ git_user_name }}
 gitlab_source: https://github.com/gitlabhq/gitlabhq.git
-gitlab_version: 7-8-stable
-gitlab_shell_version: v2.4.3
+gitlab_version: 7-9-stable
+gitlab_shell_version: v2.6.0
 ruby_version: 2.1.5
