@@ -207,7 +207,7 @@
     - { regexp: '^(gitlab_url:)( \"http://)', line: '\1 "https://{{ web_domain }}/"' }
     - { regexp: '^(user:\ ).+', line: '\1{{ git_user_name }}' }
     - { regexp: '^(repos_path:\ ).+', line: '\1"{{ git_user_home }}/repositories"' }
-    - { regexp: '^(auth_file:\ ).+', line: '\1"{{ git_user_home }}/.ssh/authorized_keys"' }
+    - { regexp: '^(auth_file:\ ).+', line: '\1"{{ git_user_home }}/.ssh/gitlab_authorized_keys"' }
   tags:
     - redeploy
 
